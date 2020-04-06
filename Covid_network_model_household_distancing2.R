@@ -27,7 +27,7 @@ R<-rep(0,L)
 #	-NEIGH_NET is the same saved as a network
 #================================================================================
 
-NEIGH<-read.csv('~/Dropbox/coronavirus/my_covid_models/example_network.csv', header=F)
+NEIGH<-read.csv('~/Philly_Covid/example_network.csv', header=F)
 NEIGH_NET<-network(NEIGH, directed=FALSE)
 rowSums(NEIGH)
 
