@@ -2,7 +2,7 @@
 #  Lots of R packages for graphs
 #	these are described in a CRAN task view here:
 #	http://cran.r-project.org/web/views/gR.html
-#	-we willl use the 'network' package
+#	-we will use the 'network' package
 #===================================================================================
 
 #install.packages("network")
@@ -27,9 +27,10 @@ R<-rep(0,L)
 #	-NEIGH_NET is the same saved as a network
 #================================================================================
 
-NEIGH<-read.csv('~/Philly_Covid/example_network.csv', header=F)
+NEIGH<-read.csv('~/Dropbox/coronavirus/my_covid_models/example_network.csv', header=F)
 NEIGH_NET<-network(NEIGH, directed=FALSE)
 rowSums(NEIGH)
+
 #===================================================================================
 #	create a network of long distance connections
 #===================================================================================
@@ -102,6 +103,7 @@ setup<-function()
 	R<<-rep(0,L)
 	recoverday<<-rep(NA,L)
 	}
+	
 #===================================================================================
 #	Key functions of stochastic simulation
 #	-infect changes I from 0 to 1, also changes E and S to 0
@@ -175,9 +177,10 @@ recover<-function(node)
 #	-setup()  set S to 1, I, E, R to 0
 #	-PREV: an empty vector to keep track of prevalence at each timestep
 #	-par sets up a plot window. par(ask=TRUE) requires a <Enter> between plots (slows sown our movie)
-#	-b : probaility infection given exposure / time step (ie rate)
+#	-b : probaility infection given exposure / time step (ie rate) 
 #	-duration : number of days infectious
-#	-Assign an index case
+#   -b is calculated from R0 and mean duration of infection
+#	-Assign index cases
 #	-infect it with infect()
 #	-expose its neighbors with expose()
 #===================================================================================
@@ -222,10 +225,15 @@ visualize_net()
 #===================================================================================
 #	Simulation loop
 #	-reps: define how many time steps
-#	-outputs a movie (currently commented out)
-#	-plots prevalence over time
+#   -social distancing is implemented at dist_day. Set to above reps for no distancing
+#   -each individual decreases samples which contacts to maintain based on their distance_factor
+#   - distance factor is drawn from a beta distribution
+#   -The LD long distance contact matrix is reduced by binomial sampling if each contact is to be maintained. 
+#   -If one individual eliminates a contact, it is also eliminated for the other
+#
 #===================================================================================
-dist_day<-500
+
+dist_day<-5
 
 for(i in 2:reps)
 	{
@@ -235,7 +243,7 @@ for(i in 2:reps)
     if(i==dist_day) {
     LD2<-LD
         distance_factor<-rbeta(L,5,5)
-        #distance_factor<-.5
+
         for(j in 1:L)
             {
             LD2[j,]<-rbinom(n=L,size=1,prob=distance_factor[j]*LD[j,])
@@ -247,6 +255,7 @@ for(i in 2:reps)
             LD2[j,k]<-LD2[j,k]*LD2[k,j]
             }
         }
+        
         ALL_NET<-NEIGH+LD2>0
         ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
         NET<-network(ALL_NET, directed=FALSE)
@@ -274,6 +283,12 @@ for(i in 2:reps)
 	CUMULPREV <- sum(I+R)/L
 	}
 
+
+#===================================================================================
+#	- plot infections over time
+#	- vertical line at day of social distancing
+#===================================================================================
+
 plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1))
 abline(v=dist_day, col="blue")
 
@@ -286,66 +301,6 @@ abline(v=dist_day, col="blue")
 
 
 
-
-
-
-
-
-
-
-
-#hist(as.vector(colSums(LD))[R==0])
-#hist(as.vector(colSums(LD))[R==1], add=T, col=2)
-
-#stop()
-
-
-###homogeneous mixing
-#define the length in days of the simulation
-reps<-100
-#set time to day 1
-i<-1
-#an empty vector to store the prevalence over the course of the simulation
-PREV<-rep(0,reps)
-#duration of infectiousness
-duration<-7
-#probability of infection in exposed node per time step
-#R0 = duration * b * average number of contacts
-R0<-3
-#sets the whole populations to susceptible
-setup()
-#set how many index cases and draw them randomly
-index<-index_case<-sample(L,20)
-#infect the index cases
-infect(index_case)
-
-b <-R0/(duration*L)
-PREV[1]<-sum(I)/L
-
-for(i in 2:reps){
-#if(i>=10) b<-b*.5    #social distancing on time
-if(length(cases)>=50) b<-b*.5    #social distancing on cases
-
-torecover<-which(recoverday==i)
-
-if (length(torecover)>=1) {
-    recover(torecover)
-    }
-
-if(length(cases)>=1){
-    random<-runif(L)
-    risk<-1-(1-b)^sum(I)        #multiplying the risk by whether or not expsoed
-    toinfect<-which(random<risk & (I+R)==0)
-    if (length(toinfect)>=1) {
-        infect(toinfect, i)
-        #expose()
-        }
-    }
-
-PREV[i]<-sum(I)/L
-CUMULPREV <- sum(I+R)/L
-plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1))
-}
 
 
 
