@@ -31,6 +31,7 @@ reset_network <- function() {
   NEIGH<-read.csv('~/Philly_Covid/example_network.csv', header=F)
   NEIGH_NET<-network(NEIGH, directed=FALSE)
   rowSums(NEIGH)
+  hist(rowSums(NEIGH)) # look at degree distribution -----------------------------
   
   #===================================================================================
   #	create a network of long distance connections
@@ -46,6 +47,7 @@ reset_network <- function() {
   diag(LD)<-0
   NET<-network(LD, directed=FALSE)
   rowSums(LD)
+  hist(rowSums(LD)) # look at degree distribution --------------------------------
   mean(rowSums(LD))
   
   #===================================================================================
@@ -54,6 +56,7 @@ reset_network <- function() {
   ALL_NET<-NEIGH+LD>0  #the unity of connections from long and neighborhood connections
   ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
   rowSums(ALL_NET)
+  hist(rowSums(ALL_NET)) # look at degree distribution
   
   #ALL_NET<-ALL_NET*0+1   #for homogeneous mixing
   #LD<-ALL_NET
@@ -62,6 +65,7 @@ reset_network <- function() {
   return(NET)
 }
 NET <- reset_network()
+
 
 #===================================================================================
 #	Plotting functions
@@ -204,14 +208,14 @@ duration<-7
 #R0 = duration * b * average number of contacts
 R0<-3
 
-b <-R0/(duration*mean(rowSums(ALL_NET)))
+b <- R0 / (duration * mean(rowSums(ALL_NET)))
  
 #b<-.05
 #sets the whole populations to susceptible
 setup()
 
 #set how many index cases and draw them randomly
-index<-index_case<-sample(L,10)
+index<-index_case<-sample(L,20)
 
 #infect the index cases
 infect(index_case)
@@ -222,7 +226,6 @@ expose()
 #plot the starting conditions
 par(ask=FALSE)
 visualize_net()
-
 
 #===================================================================================
 #	Simulation loop
@@ -235,11 +238,15 @@ visualize_net()
 #
 #===================================================================================
 
-dist_day<-5
+#dist_day<-5
+
+# incubation period
+incubation_period <- 5
 
 sim_loop <- function(dist_day) {
   NET <- reset_network()
-  print(network.edgecount(NET))
+  print(paste0("Edge count before SD: ", network.edgecount(NET)))
+  infectday <- rep(0, L)
   reps <- 100
   i <- 1
   PREV<-rep(0,reps)
@@ -247,6 +254,7 @@ sim_loop <- function(dist_day) {
   index<-index_case<-sample(L,50)
   infect(index_case)
   expose()
+  
   
   for(i in 2:reps)
   {
@@ -256,12 +264,8 @@ sim_loop <- function(dist_day) {
     if(i==dist_day) {
       LD2<-LD
       distance_factor<-rbeta(L,5,5)
-      for(j in 1:L) 
-        #' for each entry from 1 to L, you take a random draw for all other
-        #' nodes of the network based on the distance factor, which is randomly
-        #' drawn from a beta distribution of parameters 5, 5. This distance factor
-        #' is a bit like the probability that an individual will begin distancing 
-        #' or not. Note that this will only affect neighbors of node j in the LD graph.
+      
+      for(j in 1:L)
       {
         LD2[j,]<-rbinom(n=L,size=1,prob=distance_factor[j]*LD[j,])
       }
@@ -277,7 +281,7 @@ sim_loop <- function(dist_day) {
       ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
       NET<-network(ALL_NET, directed=FALSE)
       #visualize_net()
-      print(i)
+      print(paste0("Dist. day: ", i))
     }
     
     torecover<-which(recoverday==i)
@@ -289,8 +293,13 @@ sim_loop <- function(dist_day) {
       random<-runif(L)
       risk<-E*b		#multiplying the risk by whether or not expsoed
       toinfect<-which(random<risk*E)
-      if (length(toinfect)>=1) {
-        infect(toinfect, i)
+      
+      # edit ---------------------------------------------------------------------
+      infectday[toinfect] = i + incubation_period
+      
+      if (sum(infectday==i)>=1) {
+        infect(which(infectday==i), i) # edit ----------------------------------
+        #infect(toinfect, i)
         expose()
       }
     }
@@ -298,20 +307,19 @@ sim_loop <- function(dist_day) {
     #visualize_nodes()
     PREV[i]<-sum(I)/L
     CUMULPREV <- sum(I+R)/L
-    
-    print(network.edgecount(NET))
   }
+  print(paste0("Edge count after SD: ", network.edgecount(NET)))
   return(PREV)
 }
 
-intervention_times <- sort(rep(seq(from=1, to=50, by=5), times=5))
-intervention_times <- sort(rep(c(2, 105), times=7))
+#intervention_times <- sort(rep(seq(from=1, to=50, by=5), times=5))
+intervention_times <- sort(rep(c(2, 10, 20, 105), times=3))
 prevs <- list()
 prev_dex <- 1
 for (i_time in intervention_times) {
   prevs[[prev_dex]] <- sim_loop(dist_day = i_time)
   prev_dex <- prev_dex + 1
-  print(paste0(i_time, " ", length(which(R == 1))))
+  print(paste0("Final size: ", length(which(R == 1))))
 }
 prevs_df <- do.call(rbind, prevs)
 
@@ -329,7 +337,7 @@ plot_prev <- function(PREV, first) {
   }
 }
 for (row_num in 1:nrow(prevs_df)) {
-  if (row_num %% 7 == 1) {
+  if (row_num %% 3 == 1) {
     plot_prev(PREV=prevs_df[row_num,], first=T)
   } else {
     plot_prev(PREV=prevs_df[row_num,], first=F)
