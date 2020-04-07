@@ -27,39 +27,41 @@ R<-rep(0,L)
 #	-NEIGH_NET is the same saved as a network
 #================================================================================
 
-NEIGH<-read.csv('~/Philly_Covid/example_network.csv', header=F)
-NEIGH_NET<-network(NEIGH, directed=FALSE)
-rowSums(NEIGH)
-
-#===================================================================================
-#	create a network of long distance connections
-#===================================================================================
-
-connectivity<-.01
-LD<-matrix(rbinom(L^2,1,connectivity),L)
-for( i in 1:L)
-    {
+reset_network <- function() {
+  NEIGH<-read.csv('~/Philly_Covid/example_network.csv', header=F)
+  NEIGH_NET<-network(NEIGH, directed=FALSE)
+  rowSums(NEIGH)
+  
+  #===================================================================================
+  #	create a network of long distance connections
+  #===================================================================================
+  
+  connectivity<-.01
+  LD<-matrix(rbinom(L^2,1,connectivity),L)
+  for( i in 1:L)
+  {
     LD[i,]<-LD[,i]
-    }
-
-diag(LD)<-0
-NET<-network(LD, directed=FALSE)
-rowSums(LD)
-mean(rowSums(LD))
-
-#===================================================================================
-#	create a single connection network out of NEIGH and LD
-#===================================================================================
-ALL_NET<-NEIGH+LD>0  #the unity of connections from long and neighborhood connections
-ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
-rowSums(ALL_NET)
-
-#ALL_NET<-ALL_NET*0+1   #for homogeneous mixing
-#LD<-ALL_NET
-
-NET<-network(ALL_NET, directed=FALSE)
-
-
+  }
+  
+  diag(LD)<-0
+  NET<-network(LD, directed=FALSE)
+  rowSums(LD)
+  mean(rowSums(LD))
+  
+  #===================================================================================
+  #	create a single connection network out of NEIGH and LD
+  #===================================================================================
+  ALL_NET<-NEIGH+LD>0  #the unity of connections from long and neighborhood connections
+  ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
+  rowSums(ALL_NET)
+  
+  #ALL_NET<-ALL_NET*0+1   #for homogeneous mixing
+  #LD<-ALL_NET
+  
+  NET<-network(ALL_NET, directed=FALSE)
+  return(NET)
+}
+NET <- reset_network()
 
 #===================================================================================
 #	Plotting functions
@@ -235,67 +237,97 @@ visualize_net()
 
 dist_day<-5
 
-for(i in 2:reps)
-	{
+sim_loop <- function(dist_day) {
+  NET <- reset_network()
+  reps <- 100
+  i <- 1
+  PREV<-rep(0,reps)
+  setup()
+  index<-index_case<-sample(L,20)
+  infect(index_case)
+  expose()
+  
+  for(i in 2:reps)
+  {
     #social distancing at 50 cases
     #if(length(cases)>=50) {
     
     if(i==dist_day) {
-    LD2<-LD
-        distance_factor<-rbeta(L,5,5)
-
-        for(j in 1:L)
-            {
-            LD2[j,]<-rbinom(n=L,size=1,prob=distance_factor[j]*LD[j,])
-            }
-    #set to no contact if either node reduces contact
-        for(j in 1:L){
+      LD2<-LD
+      distance_factor<-rbeta(L,5,5)
+      
+      for(j in 1:L)
+      {
+        LD2[j,]<-rbinom(n=L,size=1,prob=distance_factor[j]*LD[j,])
+      }
+      #set to no contact if either node reduces contact
+      for(j in 1:L){
         for(k in 1:L)
-            {
-            LD2[j,k]<-LD2[j,k]*LD2[k,j]
-            }
+        {
+          LD2[j,k]<-LD2[j,k]*LD2[k,j]
         }
-        
-        ALL_NET<-NEIGH+LD2>0
-        ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
-        NET<-network(ALL_NET, directed=FALSE)
-        visualize_net()
-        print(i)
+      }
+      
+      ALL_NET<-NEIGH+LD2>0
+      ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
+      NET<-network(ALL_NET, directed=FALSE)
+      visualize_net()
+      print(i)
     }
     
     torecover<-which(recoverday==i)
     if (length(torecover)>=1) {
-    recover(torecover)
+      recover(torecover)
     }
     
     if(length(cases)>=1){
-    random<-runif(L)
-    risk<-E*b		#multiplying the risk by whether or not expsoed
-	toinfect<-which(random<risk*E)
-    if (length(toinfect)>=1) {
+      random<-runif(L)
+      risk<-E*b		#multiplying the risk by whether or not expsoed
+      toinfect<-which(random<risk*E)
+      if (length(toinfect)>=1) {
         infect(toinfect, i)
         expose()
-        }
-	}
+      }
+    }
     
     visualize_nodes()
-	PREV[i]<-sum(I)/L
-	CUMULPREV <- sum(I+R)/L
-	}
+    PREV[i]<-sum(I)/L
+    CUMULPREV <- sum(I+R)/L
+  }
+  return(PREV)
+}
 
+intervention_times <- rep(seq(from=1, to=80, by=5), times=3)
+prevs <- list()
+prev_dex <- 1
+for (i_time in intervention_times) {
+  prevs[[prev_dex]] <- sim_loop(dist_day = i_time)
+  prev_dex <- prev_dex + 1
+}
+prevs_df <- do.call(rbind, prevs)
 
 #===================================================================================
 #	- plot infections over time
 #	- vertical line at day of social distancing
 #===================================================================================
-
-plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1))
-abline(v=dist_day, col="blue")
-
-
-
-
-
+pdf(file=paste0("~/Philly_Covid/plots/interventions.pdf"),width=8, height=8)
+par(mfrow=c(3,3))
+plot_prev <- function(PREV, first) {
+  if (first) {
+    plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1))
+  } else {
+    lines(PREV)
+  }
+}
+for (row_num in 1:nrow(prevs_df)) {
+  if (row_num == 1) {
+    plot_prev(PREV=prevs_df[row_num,], first=T)
+  } else {
+    plot_prev(PREV=prevs_df[row_num,], first=T)
+  }
+  abline(v=intervention_times[row_num], col="blue")
+}
+dev.off()
 
 
 
