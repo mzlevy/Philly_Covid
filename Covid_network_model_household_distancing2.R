@@ -271,7 +271,7 @@ sim_loop <- function(dist_day) {
       ALL_NET<-NEIGH+LD2>0
       ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
       NET<-network(ALL_NET, directed=FALSE)
-      visualize_net()
+      #visualize_net()
       print(i)
     }
     
@@ -290,14 +290,14 @@ sim_loop <- function(dist_day) {
       }
     }
     
-    visualize_nodes()
+    #visualize_nodes()
     PREV[i]<-sum(I)/L
     CUMULPREV <- sum(I+R)/L
   }
   return(PREV)
 }
 
-intervention_times <- rep(seq(from=1, to=80, by=5), times=3)
+intervention_times <- sort(rep(seq(from=1, to=80, by=5), times=3))
 prevs <- list()
 prev_dex <- 1
 for (i_time in intervention_times) {
@@ -320,10 +320,10 @@ plot_prev <- function(PREV, first) {
   }
 }
 for (row_num in 1:nrow(prevs_df)) {
-  if (row_num == 1) {
+  if (row_num %% 3 == 1) {
     plot_prev(PREV=prevs_df[row_num,], first=T)
   } else {
-    plot_prev(PREV=prevs_df[row_num,], first=T)
+    plot_prev(PREV=prevs_df[row_num,], first=F)
   }
   abline(v=intervention_times[row_num], col="blue")
 }
