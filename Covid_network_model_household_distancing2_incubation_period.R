@@ -61,10 +61,10 @@ reset_network <- function() {
   #ALL_NET<-ALL_NET*0+1   #for homogeneous mixing
   #LD<-ALL_NET
   
-  NET<-network(ALL_NET, directed=FALSE)
-  return(NET)
+  NET<<-network(ALL_NET, directed=FALSE)
+  ALL_NET<<-ALL_NET
 }
-NET <- reset_network()
+reset_network()
 
 
 #===================================================================================
@@ -238,20 +238,18 @@ visualize_net()
 #
 #===================================================================================
 
-#dist_day<-5
-
 # incubation period
-incubation_period <- 5
+incubation_period <- 3
 
 sim_loop <- function(dist_day) {
-  NET <- reset_network()
-  print(paste0("Edge count before SD: ", network.edgecount(NET)))
+  reset_network()
+  print(paste0("mean num. neighbors before SD: ", mean(rowSums(ALL_NET))))
   infectday <- rep(0, L)
   reps <- 100
   i <- 1
   PREV<-rep(0,reps)
   setup()
-  index<-index_case<-sample(L,50)
+  index<-index_case<-sample(L,20)
   infect(index_case)
   expose()
   
@@ -262,8 +260,9 @@ sim_loop <- function(dist_day) {
     #if(length(cases)>=50) {
     
     if(i==dist_day) {
+      print("SD enacted")
       LD2<-LD
-      distance_factor<-rbeta(L,5,5)
+      distance_factor<-rbeta(L,20,5)
       
       for(j in 1:L)
       {
@@ -278,10 +277,13 @@ sim_loop <- function(dist_day) {
       }
       
       ALL_NET<-NEIGH+LD2>0
-      ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
-      NET<-network(ALL_NET, directed=FALSE)
+      ALL_NET<-NEIGH2>0
+      ALL_NET<<-ALL_NET*1       #so that NET is displayed in 0 and 1s
+      #ALL_NET<<- matrix(0, ncol=1000, nrow=1000)
+      NET<<-network(ALL_NET, directed=FALSE)
       #visualize_net()
       print(paste0("Dist. day: ", i))
+      print(paste0("mean num. neighbors after SD: ", mean(rowSums(ALL_NET))))
     }
     
     torecover<-which(recoverday==i)
@@ -294,11 +296,10 @@ sim_loop <- function(dist_day) {
       risk<-E*b		#multiplying the risk by whether or not expsoed
       toinfect<-which(random<risk*E)
       
-      # edit ---------------------------------------------------------------------
       infectday[toinfect] = i + incubation_period
       
       if (sum(infectday==i)>=1) {
-        infect(which(infectday==i), i) # edit ----------------------------------
+        infect(which(infectday==i), i)
         #infect(toinfect, i)
         expose()
       }
@@ -308,12 +309,11 @@ sim_loop <- function(dist_day) {
     PREV[i]<-sum(I)/L
     CUMULPREV <- sum(I+R)/L
   }
-  print(paste0("Edge count after SD: ", network.edgecount(NET)))
   return(PREV)
 }
 
 #intervention_times <- sort(rep(seq(from=1, to=50, by=5), times=5))
-intervention_times <- sort(rep(c(2, 10, 20, 105), times=3))
+intervention_times <- sort(rep(c(2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 105), times=3), decreasing=F)
 prevs <- list()
 prev_dex <- 1
 for (i_time in intervention_times) {
@@ -327,20 +327,20 @@ prevs_df <- do.call(rbind, prevs)
 #	- plot infections over time
 #	- vertical line at day of social distancing
 #===================================================================================
-pdf(file=paste0("~/Philly_Covid/plots/interventions.pdf"),width=8, height=8)
-par(mfrow=c(3,3))
-plot_prev <- function(PREV, first) {
+pdf(file=paste0("~/Philly_Covid/plots/interventions_ip_", incubation_period, ".pdf"),width=9, height=12)
+par(mfrow=c(4,3))
+plot_prev <- function(PREV, first, sd_day) {
   if (first) {
-    plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1))
+    plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1), main=paste0("SD enacted: ", sd_day))
   } else {
     lines(PREV)
   }
 }
 for (row_num in 1:nrow(prevs_df)) {
   if (row_num %% 3 == 1) {
-    plot_prev(PREV=prevs_df[row_num,], first=T)
+    plot_prev(PREV=prevs_df[row_num,], first=T, sd_day=intervention_times[row_num])
   } else {
-    plot_prev(PREV=prevs_df[row_num,], first=F)
+    plot_prev(PREV=prevs_df[row_num,], first=F, sd_day=intervention_times[row_num])
   }
   abline(v=intervention_times[row_num], col="blue")
 }
