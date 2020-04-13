@@ -239,7 +239,7 @@ visualize_net()
 #===================================================================================
 
 # incubation period
-incubation_period <- 3
+incubation_period <- 5
 
 sim_loop <- function(dist_day) {
   reset_network()
@@ -262,7 +262,7 @@ sim_loop <- function(dist_day) {
     if(i==dist_day) {
       print("SD enacted")
       LD2<-LD
-      distance_factor<-rbeta(L,20,5)
+      distance_factor<-rbeta(L,5,5)
       
       for(j in 1:L)
       {
@@ -313,7 +313,7 @@ sim_loop <- function(dist_day) {
 }
 
 #intervention_times <- sort(rep(seq(from=1, to=50, by=5), times=5))
-intervention_times <- sort(rep(c(2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 105), times=3), decreasing=F)
+intervention_times <- sort(rep(c(2, 5, 10, 15, 20, 25, 30, 105), times=5), decreasing=F)
 prevs <- list()
 prev_dex <- 1
 for (i_time in intervention_times) {
@@ -329,18 +329,22 @@ prevs_df <- do.call(rbind, prevs)
 #===================================================================================
 pdf(file=paste0("~/Philly_Covid/plots/interventions_ip_", incubation_period, ".pdf"),width=9, height=12)
 par(mfrow=c(4,3))
-plot_prev <- function(PREV, first, sd_day) {
+plot_prev <- function(PREV, first, sd_day, input_col="black") {
   if (first) {
-    plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1), main=paste0("SD enacted: ", sd_day))
+    plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1),col=input_col, main=paste0("SD enacted: ", sd_day))
   } else {
-    lines(PREV)
+    lines(PREV, col=input_col)
   }
 }
 for (row_num in 1:nrow(prevs_df)) {
-  if (row_num %% 3 == 1) {
+  if (row_num %% 5 == 1) {
     plot_prev(PREV=prevs_df[row_num,], first=T, sd_day=intervention_times[row_num])
   } else {
-    plot_prev(PREV=prevs_df[row_num,], first=F, sd_day=intervention_times[row_num])
+    if (row_num %in% c(3, 4, 5)) {
+      plot_prev(PREV=prevs_df[row_num,], first=F, sd_day=intervention_times[row_num])
+    } else {
+      plot_prev(PREV=prevs_df[row_num,], first=F, sd_day=intervention_times[row_num], input_col="gray")
+    }
   }
   abline(v=intervention_times[row_num], col="blue")
 }
