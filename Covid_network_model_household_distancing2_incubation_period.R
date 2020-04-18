@@ -79,101 +79,101 @@ COORDS<-plot(NEIGH_NET,vertex.col="black")
 COLS<-rep(1,L)
 
 visualize_net<-function()
-	{
-	COLS[I==1]<-"red"
-	COLS[E==1]<-"orange"
-	COLS[S==1]<-"black"
-	COLS[R==1]<-"white"
-	plot(NET,vertex.col=COLS, jitter=FALSE, coord=COORDS)
-	}
+{
+  COLS[I==1]<-"red"
+  COLS[E==1]<-"orange"
+  COLS[S==1]<-"black"
+  COLS[R==1]<-"white"
+  plot(NET,vertex.col=COLS, jitter=FALSE, coord=COORDS)
+}
 
 
 visualize_nodes<-function()
-	{
-	COLS[I==1]<-"red"
-	COLS[E==1]<-"orange"
-	COLS[S==1]<-"black"
-	COLS[R==1]<-"white"
-    lines(COORDS,col=COLS,pch=19,type="p") # much faster than points()
-	}
+{
+  COLS[I==1]<-"red"
+  COLS[E==1]<-"orange"
+  COLS[S==1]<-"black"
+  COLS[R==1]<-"white"
+  lines(COORDS,col=COLS,pch=19,type="p") # much faster than points()
+}
 
 #===================================================================================
 #	-Set up Simulation 
 #	-S,E,I,R vectors
 #===================================================================================
 setup<-function()
-	{
-	S<<-rep(1,L)
-	E<<-rep(0,L)
-	I<<-rep(0,L)
-	R<<-rep(0,L)
-	recoverday<<-rep(NA,L)
-	}
-	
+{
+  S<<-rep(1,L)
+  E<<-rep(0,L)
+  I<<-rep(0,L)
+  R<<-rep(0,L)
+  recoverday<<-rep(NA,L)
+}
+
 #===================================================================================
 #	Key functions of stochastic simulation
 #	-infect changes I from 0 to 1, also changes E and S to 0
 #===================================================================================
 
 infect<-function(node,day=i)
-	{
-	I[node]<<-1
-	E[node]<<-0
-	S[node]<<-0
-	cases<<-which(I==1)
-	recoverday[node]<<-day+duration
-	}
-		
+{
+  I[node]<<-1
+  E[node]<<-0
+  S[node]<<-0
+  cases<<-which(I==1)
+  recoverday[node]<<-day+duration
+}
+
 expose<-function()
-	{
-        if(length(cases)==0){
-        E<<-E*0
-        return()
-        }
-        
-    if(length(cases==1))
-	   {
-	   toexpose<-which(ALL_NET[,cases]==1 & S)
-	   }
-       
-	if(length(cases)>1)
-	   {
-	   toexpose<-which(rowSums(ALL_NET[,cases])>=1 & S)
-	   }
-       
-	E[toexpose]<<-1
-	E[cases]<<-0
-	S[toexpose]<<-0
-    
-    #make sure no recovereds are reexpose
-    E[R]<<-0
-	#R[toexpose]<<-0
-    }
+{
+  if(length(cases)==0){
+    E<<-E*0
+    return()
+  }
+  
+  if(length(cases==1))
+  {
+    toexpose<-which(ALL_NET[,cases]==1 & S)
+  }
+  
+  if(length(cases)>1)
+  {
+    toexpose<-which(rowSums(ALL_NET[,cases])>=1 & S)
+  }
+  
+  E[toexpose]<<-1
+  E[cases]<<-0
+  S[toexpose]<<-0
+  
+  #make sure no recovereds are reexpose
+  E[R]<<-0
+  #R[toexpose]<<-0
+}
 
 recover<-function(node)
-	{
-	I[node]<<-0
-	E[node]<<-0
-	S[node]<<-0
-	R[node]<<-1
-	cases<<-which(I==1)
-    
-    #unexpose all connected to recovered nodes
-    if(length(node==1))
-       {
-       tounexpose<-which(ALL_NET[,node]==1)
-       }
-       
-    if(length(node)>1)
-       {
-       tounexpose<-which(rowSums(ALL_NET[,node])>=1)
-       }
-       
-    E[tounexpose]<<-0
-    
-    #reexpose those who had more than one infectious contact
-    expose()
-	}
+{
+  I[node]<<-0
+  E[node]<<-0
+  S[node]<<-0
+  R[node]<<-1
+  cases<<-which(I==1)
+  
+  #unexpose all connected to recovered nodes
+  if(length(node==1))
+  {
+    tounexpose<-which(ALL_NET[,node]==1)
+  }
+  
+  if(length(node)>1)
+  {
+    tounexpose<-which(rowSums(ALL_NET[,node])>=1)
+  }
+  
+  E[tounexpose]<<-0
+  
+  #reexpose those who had more than one infectious contact
+  expose()
+}
 
 
 
@@ -206,10 +206,10 @@ duration<-7
 
 #probability of infection in exposed node per time step
 #R0 = duration * b * average number of contacts
-R0<-3
+R0<-15
 
 b <- R0 / (duration * mean(rowSums(ALL_NET)))
- 
+
 #b<-.05
 #sets the whole populations to susceptible
 setup()
@@ -277,7 +277,6 @@ sim_loop <- function(dist_day) {
       }
       
       ALL_NET<-NEIGH+LD2>0
-      ALL_NET<-NEIGH2>0
       ALL_NET<<-ALL_NET*1       #so that NET is displayed in 0 and 1s
       #ALL_NET<<- matrix(0, ncol=1000, nrow=1000)
       NET<<-network(ALL_NET, directed=FALSE)
@@ -313,15 +312,20 @@ sim_loop <- function(dist_day) {
 }
 
 #intervention_times <- sort(rep(seq(from=1, to=50, by=5), times=5))
-intervention_times <- sort(rep(c(2, 5, 10, 15, 20, 25, 30, 105), times=5), decreasing=F)
+intervention_times <- sort(rep(c(2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 105), times=5), decreasing=F)
 prevs <- list()
 prev_dex <- 1
+f_size <- list()
+f_size_dex <- 1
 for (i_time in intervention_times) {
   prevs[[prev_dex]] <- sim_loop(dist_day = i_time)
   prev_dex <- prev_dex + 1
+  f_size[[f_size_dex]] <- length(which(R == 1))
+  f_size_dex <- f_size_dex + 1
   print(paste0("Final size: ", length(which(R == 1))))
 }
 prevs_df <- do.call(rbind, prevs)
+f_size_df <- do.call(rbind, f_size)
 
 #===================================================================================
 #	- plot infections over time
@@ -329,32 +333,70 @@ prevs_df <- do.call(rbind, prevs)
 #===================================================================================
 pdf(file=paste0("~/Philly_Covid/plots/interventions_ip_", incubation_period, ".pdf"),width=9, height=12)
 par(mfrow=c(4,3))
-plot_prev <- function(PREV, first, sd_day, input_col="black") {
+plot_prev <- function(PREV, first, sd_day) {
   if (first) {
-    plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1),col=input_col, main=paste0("SD enacted: ", sd_day))
+    plot(PREV,typ="l", ylab="Prevalence",xlab="Time step",ylim=c(0,1), main=paste0("SD enacted: ", sd_day))
   } else {
-    lines(PREV, col=input_col)
+    lines(PREV)
   }
 }
 for (row_num in 1:nrow(prevs_df)) {
   if (row_num %% 5 == 1) {
     plot_prev(PREV=prevs_df[row_num,], first=T, sd_day=intervention_times[row_num])
   } else {
-    if (row_num %in% c(3, 4, 5)) {
-      plot_prev(PREV=prevs_df[row_num,], first=F, sd_day=intervention_times[row_num])
-    } else {
-      plot_prev(PREV=prevs_df[row_num,], first=F, sd_day=intervention_times[row_num], input_col="gray")
-    }
+    plot_prev(PREV=prevs_df[row_num,], first=F, sd_day=intervention_times[row_num])
   }
   abline(v=intervention_times[row_num], col="blue")
 }
 dev.off()
 
+# SIR
+library(deSolve)
+sir <- function(time, state, parameters) 
+{
+  if (round(time) >= 10) {
+    print("here")
+    with(
+      as.list(c(state, parameters)), 
+      {
+        dS <- -beta2 * S * I
+        dI <- beta2 * S * I - gamma * I
+        dR <- gamma * I
+        return(list(c(dS, dI, dR)))
+      }
+    )
+  } else {
+    with(
+      as.list(c(state, parameters)), 
+      {
+        dS <- -beta * S * I
+        dI <- beta * S * I - gamma * I
+        dR <- gamma * I
+        return(list(c(dS, dI, dR)))
+      }
+    )
+  }
+}
 
-
-
-
-
-
-
+x <- seq(1/30, 1/1.2, by=0.05)
+first <- T
+for (in_gamma in x) {
+  init <- c(S=100000, I=1, R=0)
+  parameters <- c(beta = 1/100000, beta2 = 1/200000, gamma = in_gamma)
+  times <- seq(0, 200, by = 1)
+  out <- as.data.frame(ode(y = init, times = times, func = sir, parms = parameters))
+  S<-out$S
+  I<-out$I
+  R<-out$R
+  RESULTS<-data.frame(out$S,out$I,out$R)
+  if (first) {
+    #plot(times,I / 100000, ylim=c(0,1),xlim=c(0,100),  xlab = "t (days)", ylab = "I", main = "Compartmental Model", typ="l",col="black")
+    abline(v=10, col="green")
+    lines(times,I / 100000, col="red", lty="longdash")
+    first <- F
+  } else {
+    lines(times,I / 100000, col="red", lty="longdash")
+    #lines(times,I / 100000, col="black")
+  }
+}
 
