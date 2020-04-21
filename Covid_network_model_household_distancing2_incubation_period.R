@@ -28,8 +28,14 @@ R<-rep(0,L)
 #================================================================================
 
 reset_network <- function() {
-  NEIGH<-read.csv('~/Philly_Covid/example_network.csv', header=F)
+  NEIGH<-as.matrix(read.csv('~/Philly_Covid/example_network.csv', header=F))
+  
+  # force to be symmetric ----------------
+  #NEIGH <- Matrix::forceSymmetric(as.matrix(NEIGH),uplo="L")
+  NEIGH <- as.matrix(NEIGH)
   NEIGH_NET<-network(NEIGH, directed=FALSE)
+  NEIGH_NET <<- NEIGH_NET
+  NEIGH <<- NEIGH
   rowSums(NEIGH)
   hist(rowSums(NEIGH)) # look at degree distribution -----------------------------
   
@@ -45,6 +51,7 @@ reset_network <- function() {
   }
   
   diag(LD)<-0
+  LD <<- LD
   NET<-network(LD, directed=FALSE)
   rowSums(LD)
   hist(rowSums(LD)) # look at degree distribution --------------------------------
@@ -53,7 +60,7 @@ reset_network <- function() {
   #===================================================================================
   #	create a single connection network out of NEIGH and LD
   #===================================================================================
-  ALL_NET<-NEIGH+LD>0  #the unity of connections from long and neighborhood connections
+  ALL_NET<-(NEIGH+LD)>0  #the unity of connections from long and neighborhood connections
   ALL_NET<-ALL_NET*1       #so that NET is displayed in 0 and 1s
   rowSums(ALL_NET)
   hist(rowSums(ALL_NET)) # look at degree distribution
@@ -131,7 +138,10 @@ expose<-function()
     return()
   }
   
-  if(length(cases==1))
+  # function exposes all neighbors according to the ALL_NET object
+  # maybe check if people are being reexposed after SD. They were infected once.
+  
+  if(length(cases)==1)
   {
     toexpose<-which(ALL_NET[,cases]==1 & S)
   }
@@ -159,7 +169,7 @@ recover<-function(node)
   cases<<-which(I==1)
   
   #unexpose all connected to recovered nodes
-  if(length(node==1))
+  if(length(node)==1) # typo -----
   {
     tounexpose<-which(ALL_NET[,node]==1)
   }
@@ -202,11 +212,11 @@ PREV<-rep(0,reps)
 
 
 #duration of infectiousness
-duration<-7
+duration<-11
 
 #probability of infection in exposed node per time step
 #R0 = duration * b * average number of contacts
-R0<-15
+R0<-3
 
 b <- R0 / (duration * mean(rowSums(ALL_NET)))
 
@@ -224,8 +234,8 @@ infect(index_case)
 expose()
 
 #plot the starting conditions
-par(ask=FALSE)
-visualize_net()
+#par(ask=FALSE)
+#visualize_net()
 
 #===================================================================================
 #	Simulation loop
@@ -241,11 +251,12 @@ visualize_net()
 # incubation period
 incubation_period <- 5
 
-sim_loop <- function(dist_day) {
+sim_loop <- function(dist_day, input_beta) {
   reset_network()
   print(paste0("mean num. neighbors before SD: ", mean(rowSums(ALL_NET))))
+  print(paste0("num. edges: ", sum(rowSums(ALL_NET)) / 2))
   infectday <- rep(0, L)
-  reps <- 100
+  reps <- 200
   i <- 1
   PREV<-rep(0,reps)
   setup()
@@ -262,8 +273,7 @@ sim_loop <- function(dist_day) {
     if(i==dist_day) {
       print("SD enacted")
       LD2<-LD
-      distance_factor<-rbeta(L,5,5)
-      
+      distance_factor<-rbeta(L,input_beta,5)
       for(j in 1:L)
       {
         LD2[j,]<-rbinom(n=L,size=1,prob=distance_factor[j]*LD[j,])
@@ -275,14 +285,39 @@ sim_loop <- function(dist_day) {
           LD2[j,k]<-LD2[j,k]*LD2[k,j]
         }
       }
-      
+
       ALL_NET<-NEIGH+LD2>0
+      
+      for (i in nrow(test2)) {
+        for (j in ncol(test2)) {
+          if (test2[i,j] < 0) {
+            print("error")
+          }
+        }
+      }
+      #*
+      # LD2<-ALL_NET
+      # distance_factor<-rbeta(L,input_beta,5)
+      # for(j in 1:L)
+      # {
+      #   LD2[j,]<-rbinom(n=L,size=1,prob=distance_factor[j]*LD[j,])
+      # }
+      # #set to no contact if either node reduces contact
+      # for(j in 1:L){
+      #   for(k in 1:L)
+      #   {
+      #     LD2[j,k]<-LD2[j,k]*LD2[k,j]
+      #   }
+      # }
+      # ALL_NET <- LD2>0
+      #*
+      
       ALL_NET<<-ALL_NET*1       #so that NET is displayed in 0 and 1s
-      #ALL_NET<<- matrix(0, ncol=1000, nrow=1000)
       NET<<-network(ALL_NET, directed=FALSE)
       #visualize_net()
       print(paste0("Dist. day: ", i))
       print(paste0("mean num. neighbors after SD: ", mean(rowSums(ALL_NET))))
+      print(paste0("num. edges: ", sum(rowSums(ALL_NET)) / 2))
     }
     
     torecover<-which(recoverday==i)
@@ -305,13 +340,16 @@ sim_loop <- function(dist_day) {
     }
     
     #visualize_nodes()
-    PREV[i]<-sum(I)/L
+    PREV[i]<-(sum(I))/L
     CUMULPREV <- sum(I+R)/L
   }
   return(PREV)
 }
 
-#intervention_times <- sort(rep(seq(from=1, to=50, by=5), times=5))
+#===================================================================================
+#	- plot infections over time
+#	- vertical line at day of social distancing
+#===================================================================================
 intervention_times <- sort(rep(c(2, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 105), times=5), decreasing=F)
 prevs <- list()
 prev_dex <- 1
@@ -327,10 +365,6 @@ for (i_time in intervention_times) {
 prevs_df <- do.call(rbind, prevs)
 f_size_df <- do.call(rbind, f_size)
 
-#===================================================================================
-#	- plot infections over time
-#	- vertical line at day of social distancing
-#===================================================================================
 pdf(file=paste0("~/Philly_Covid/plots/interventions_ip_", incubation_period, ".pdf"),width=9, height=12)
 par(mfrow=c(4,3))
 plot_prev <- function(PREV, first, sd_day) {
@@ -350,12 +384,51 @@ for (row_num in 1:nrow(prevs_df)) {
 }
 dev.off()
 
+#===================================================================================
+#	- plot the effect of social distancing
+#===================================================================================
+intervention_times <- sort(rep(c(seq(from=3, to=15, by=3), 105), times=1), decreasing=F)
+betas <- rep(5, times=10)
+#intervention_times <- sort(rep(c(10, 105), times=5))
+#betas <- c(5)
+prevs <- list()
+prev_dex <- 1
+f_size <- list()
+f_size_dex <- 1
+for (i_time in intervention_times) {
+  for (beta in betas) {
+    prevs[[prev_dex]] <- sim_loop(dist_day = i_time, input_beta=beta)
+    prev_dex <- prev_dex + 1
+    f_size[[f_size_dex]] <- length(which(R == 1))
+    f_size_dex <- f_size_dex + 1
+    print(paste0("Final size: ", length(which(R == 1))))
+  }
+}
+prevs_df <- do.call(rbind, prevs)
+f_size_df <- do.call(rbind, f_size)
+
+pdf(file=paste0("~/Desktop/network", ".pdf"),width=12, height=8)
+par(mfrow=c(2,3))
+index <- 1
+for (i_time in intervention_times) {
+  for (beta in betas) {
+    if (index %% 10 == 1) {
+      plot(prevs_df[index,],typ="l", ylab="I/N",xlab="Time step",ylim=c(0,0.3),xlim=c(0, 150), main=paste0("Network model, i_time=", i_time))
+      abline(v=i_time, col="green")
+    } else {
+      lines(prevs_df[index,])
+    }
+    index <- index + 1
+  }
+}
+dev.off()
+
+
 # SIR
 library(deSolve)
 sir <- function(time, state, parameters) 
 {
   if (round(time) >= 10) {
-    print("here")
     with(
       as.list(c(state, parameters)), 
       {
@@ -378,25 +451,32 @@ sir <- function(time, state, parameters)
   }
 }
 
-x <- seq(1/30, 1/1.2, by=0.05)
+input_beta <- 0.0002727273
+x <- sort(seq(input_beta/10, input_beta/1, by=input_beta/10), decreasing=T)
 first <- T
-for (in_gamma in x) {
-  init <- c(S=100000, I=1, R=0)
-  parameters <- c(beta = 1/100000, beta2 = 1/200000, gamma = in_gamma)
-  times <- seq(0, 200, by = 1)
+for (in_beta in x[1]) {
+  init <- c(S=1000, I=1, R=0)
+  # beta solved as 0.0002727273
+  parameters <- c(beta = 0.0002727273, beta2 = in_beta, gamma = 1/11)
+  times <- seq(0, 300, by = 1)
   out <- as.data.frame(ode(y = init, times = times, func = sir, parms = parameters))
   S<-out$S
   I<-out$I
   R<-out$R
   RESULTS<-data.frame(out$S,out$I,out$R)
   if (first) {
-    #plot(times,I / 100000, ylim=c(0,1),xlim=c(0,100),  xlab = "t (days)", ylab = "I", main = "Compartmental Model", typ="l",col="black")
-    abline(v=10, col="green")
-    lines(times,I / 100000, col="red", lty="longdash")
+    plot(times,I/1000, ylim=c(0,0.3),xlim=c(0,120),  xlab = "t (days)", ylab = "I/N", main = "Comparison of simple mass-action model to simple network model", typ="l",col="red")
+    #abline(v=10, col="green")
+    #lines(times,I / 1000, col="red", lty="longdash")
     first <- F
   } else {
-    lines(times,I / 100000, col="red", lty="longdash")
-    #lines(times,I / 100000, col="black")
+    #lines(times,I / 1000, col="red", lty="longdash")
+    #lines(times,I/1000, col="black")
   }
 }
+for (index in 6:10) {
+  lines(prevs_df[index,], col="black")
+}
+legend(80, 0.3, legend=c("Mass-action model", "Network model"),
+       col=c("red", "black"), lty=1, cex=0.8)
 
