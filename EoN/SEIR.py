@@ -182,12 +182,12 @@ Set the spontaneous parameters and transmission parameters for the SEIR simulati
 H = nx.DiGraph()
 H.add_node('S')
 H.add_edge('E', 'I', rate = 1/5, weight_label='expose2infect_weight')
-H.add_edge('I', 'R', rate = 1/6)
+H.add_edge('I', 'R', rate = 1/8)
 
 J = nx.DiGraph()
-J.add_edge(('I', 'S'), ('I', 'E'), rate = (3 / (O.number_of_edges() / 1000) / 5), weight_label='transmission_weight')
+J.add_edge(('I', 'S'), ('I', 'E'), rate = (2.5 / (O.number_of_edges() / 1000) / 5), weight_label='transmission_weight')
 IC = defaultdict(lambda: 'S')
-for node in range(1):
+for node in range(3):
     IC[node] = 'I'
 
 return_statuses = ('S', 'E', 'I', 'R')
