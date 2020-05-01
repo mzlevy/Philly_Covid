@@ -169,7 +169,7 @@ soln_I = soln[:, 2]
 """
 Set the spontaneous parameters and transmission parameters for the SEIR simulation
 """
-i2h_factor = 2
+i2h_factor = 1
 
 H = nx.DiGraph()
 H.add_node('S')
@@ -177,7 +177,7 @@ H.add_edge('E', 'I', rate = i2h_factor * 1/5, weight_label='expose2infect_weight
 H.add_edge('I', 'R', rate = i2h_factor * 1/6)
 
 J = nx.DiGraph()
-J.add_edge(('I', 'S'), ('I', 'E'), rate = (1.5 / (O.number_of_edges() / 1000) / 5), weight_label='transmission_weight')
+J.add_edge(('I', 'S'), ('I', 'E'), rate = (2 / (O.number_of_edges() / 1000) / 5), weight_label='transmission_weight')
 IC = defaultdict(lambda: 'S')
 for node in range(5):
     IC[node] = 'I'
