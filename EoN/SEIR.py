@@ -6,7 +6,8 @@ Created on Thu Apr 23 14:53:47 2020
 @author: Justin Sheen
 
 This code is a partial remix of Joel C. Miller's code for an SEIR epidemic. I
-include the simulation of social distancing to the mix.
+include the simulation of social distancing to the mix. I also include the idea
+of expanding your quarantine circle after some amount of time.
 
 Joel C. Miller's original code can be found here: https://epidemicsonnetworks.readthedocs.io/en/latest/functions/EoN.Gillespie_simple_contagion.html#EoN.Gillespie_simple_contagion
 """
@@ -34,6 +35,7 @@ N = 1000
 local_raw = np.loadtxt(open("/Users/Justin/Philly_Covid/example_network.csv", "rb"), delimiter=",", skiprows=1)
 local_raw = np.append(local_raw, local_raw[998:], 0)
 local_sym = np.maximum(local_raw, local_raw.transpose())
+local_sym = local_sym[0:199, 0:199] #-------
 local = nx.from_numpy_matrix(local_sym)
 local = local.to_undirected()
 
@@ -116,14 +118,13 @@ expanded_SD.add_edges_from(expanded_local.edges()) # This only expands NEIGH
 nx.set_node_attributes(expanded_SD, values=node_attribute_dict, name='expose2infect_weight')
 nx.set_edge_attributes(expanded_SD, values=edge_attribute_dict, name='transmission_weight')
 
-
 """
 Define simple ODE mass-action SEIR model with social distancing
-"""
+
 def ode_model(z, t, beta, beta_two, sigma, gamma, SD_day):
-    """
-    Reference https://www.idmod.org/docs/hiv/model-seir.html
-    """
+    
+    # Reference https://www.idmod.org/docs/hiv/model-seir.html
+    
     S, E, I, R = z
     N = S + E + I + R
     if (t < SD_day):
@@ -147,7 +148,7 @@ def ode_solver(t, initial_conditions, params, SD_day):
     return res
 
 soln = ode_solver(t=list(range(0, 200, 1)),
-                        initial_conditions=[0, 5, 0, 1000], 
+                        initial_conditions=[0, 5, 0, N], 
                         params=[0.5, 0.25, 0.2, 0.167],
                         SD_day=50)
 
@@ -157,16 +158,26 @@ soln = ode_solver(t=list(range(0, 200, 1)),
 # plt.plot(list(range(0, 200, 1)), soln[:,2])
 # plt.plot(list(range(0, 200, 1)), soln[:,3])
 
+# Get ODE solution --------------------------------------------------------
+soln = ode_solver(t=list(range(0, 200, 1)),
+                    initial_conditions=[0, 5, 0, N],
+                    params=[0.5, 0.25, 0.2, 0.167],
+                    SD_day=SD_days[SD_day_dex])
+soln_I = soln[:, 2]
+"""
+
 """
 Set the spontaneous parameters and transmission parameters for the SEIR simulation
 """
+i2h_factor = 2
+
 H = nx.DiGraph()
 H.add_node('S')
-H.add_edge('E', 'I', rate = 0.6, weight_label='expose2infect_weight')
-H.add_edge('I', 'R', rate = 0.1)
+H.add_edge('E', 'I', rate = i2h_factor * 1/5, weight_label='expose2infect_weight')
+H.add_edge('I', 'R', rate = i2h_factor * 1/6)
 
 J = nx.DiGraph()
-J.add_edge(('I', 'S'), ('I', 'E'), rate = 0.01, weight_label='transmission_weight')
+J.add_edge(('I', 'S'), ('I', 'E'), rate = (1.5 / (O.number_of_edges() / 1000) / 5), weight_label='transmission_weight')
 IC = defaultdict(lambda: 'S')
 for node in range(5):
     IC[node] = 'I'
@@ -177,8 +188,9 @@ return_statuses = ('S', 'E', 'I', 'R')
 Run the SEIR epidemic on the O graph until the SD day, then switch to the SD 
 graph, then switch to the expanding quarantine circle graph
 """
-cumul_sims = list()
-SD_days = list(range(2, 100, 4)) + list(range(100, 200, 10))
+cumul_sims_SD = list()
+cumul_sims_EQ = list()
+SD_days = list(range(2, 100, 2)) + list(range(100, 150, 10))
 EQ_implemented = 30
 for SD_day in SD_days:
     for iteration in list(range(5)):
@@ -189,7 +201,7 @@ for SD_day in SD_days:
         E_O = full_O.summary()[1]['E']
         I_O = full_O.I()
         R_O = full_O.R()
-        nodes_O_final = full_O.get_statuses(list(range(1000)), t_O[-1])
+        nodes_O_final = full_O.get_statuses(list(range(N)), t_O[-1])
         
         # Next, run on the SD graph -------------------------------------------
         SD_IC = defaultdict(lambda: 'S')
@@ -201,9 +213,9 @@ for SD_day in SD_days:
         E_SD = full_SD.summary()[1]['E']
         I_SD = full_SD.I()
         R_SD = full_SD.R()
-        nodes_SD_final = full_SD.get_statuses(list(range(1000)), t_SD[-1])
+        nodes_SD_final = full_SD.get_statuses(list(range(N)), t_SD[-1])
         
-        # Next, run on the expanded quarantine graph --------------------------
+        # Next, finish sim on the expanded quarantine graph or SD graph -------
         EQ_IC = defaultdict(lambda: 'S')
         for node in range(N):
             EQ_IC[node] = nodes_SD_final[node]
@@ -214,49 +226,76 @@ for SD_day in SD_days:
         I_EQ = full_EQ.I()
         R_EQ = full_EQ.R()
         
-        # Combine the time series in order to visualize in a plot -------------
+        FSD_IC = defaultdict(lambda: 'S')
+        for node in range(N):
+            FSD_IC[node] = nodes_SD_final[node]
+        full_FSD = EoN.Gillespie_simple_contagion(SD, H, J, FSD_IC, return_statuses, tmax = float('Inf'), return_full_data=True)
+        t_FSD = full_FSD.t()
+        S_FSD = full_FSD.S()
+        E_FSD = full_FSD.summary()[1]['E']
+        I_FSD = full_FSD.I()
+        R_FSD = full_FSD.R()
+        
+        # Combine the time series of SD ---------------------------------------
         t = np.concatenate((t_O, (t_SD + t_O[-1])), axis=None)
         S = np.concatenate((S_O, S_SD), axis=None)
         E = np.concatenate((E_O, E_SD), axis=None)
         I = np.concatenate((I_O, I_SD), axis=None)
         R = np.concatenate((R_O, R_SD), axis=None)
-        
-        t = np.concatenate((t, (t_EQ + t_SD[-1] + t_O[-1])), axis = None)
-        S = np.concatenate((S, S_EQ), axis=None)
-        E = np.concatenate((E, E_EQ), axis=None)
-        I = np.concatenate((I, I_EQ), axis=None)
-        R = np.concatenate((R, R_EQ), axis=None)
+        t = np.concatenate((t, (t_FSD + t_SD[-1] + t_O[-1])), axis = None)
+        S = np.concatenate((S, S_FSD), axis=None)
+        E = np.concatenate((E, E_FSD), axis=None)
+        I = np.concatenate((I, I_FSD), axis=None)
+        R = np.concatenate((R, R_FSD), axis=None)
     
-        # Save results in list of lists ---------------------------------------
+        # Save SD results in list of lists ------------------------------------
         to_add = list()
         to_add.append(t)
         to_add.append(S)
         to_add.append(E)
         to_add.append(I)
         to_add.append(R)
-        cumul_sims.append(to_add)
+        cumul_sims_SD.append(to_add)
+        
+        # Combine the time series of EQ ---------------------------------------
+        t = np.concatenate((t_O, (t_SD + t_O[-1])), axis=None)
+        S = np.concatenate((S_O, S_SD), axis=None)
+        E = np.concatenate((E_O, E_SD), axis=None)
+        I = np.concatenate((I_O, I_SD), axis=None)
+        R = np.concatenate((R_O, R_SD), axis=None)
+        t = np.concatenate((t, (t_EQ + t_SD[-1] + t_O[-1])), axis = None)
+        S = np.concatenate((S, S_EQ), axis=None)
+        E = np.concatenate((E, E_EQ), axis=None)
+        I = np.concatenate((I, I_EQ), axis=None)
+        R = np.concatenate((R, R_EQ), axis=None)
+    
+        # Save EQ results in list of lists ------------------------------------
+        to_add = list()
+        to_add.append(t)
+        to_add.append(S)
+        to_add.append(E)
+        to_add.append(I)
+        to_add.append(R)
+        cumul_sims_EQ.append(to_add)
         
 """
 Plot comparison of the ODE model solution to the stochastic simulations of the 
 network model
 """
 SD_day_dex = 0
-for sim_num in range(len(cumul_sims)):
-    # Get ODE solution --------------------------------------------------------
-    soln = ode_solver(t=list(range(0, 200, 1)),
-                        initial_conditions=[0, 5, 0, 1000],
-                        params=[0.5, 0.25, 0.2, 0.167],
-                        SD_day=SD_days[SD_day_dex])
-    soln_I = soln[:, 2]
-
-    # Plot the ODE solution and stochastic simulations together ---------------
+for sim_num in range(len(cumul_sims_SD)):
+    # Plot the stochastic simulations together --------------------------------
     plt.xlim(0, 200)
-    plt.ylim(1, 350)
-    plt.ylabel('I')
+    plt.ylim(0, 0.25)
+    plt.ylabel('I/N')
     plt.xlabel('t')
     plt.title('SD: ' + str(SD_days[SD_day_dex]))
     #plt.plot(list(range(0, 200, 1)), soln_I, label="mass-action", color="red")
-    plt.plot(cumul_sims[sim_num][0], cumul_sims[sim_num][3], label='network', color="black")
+    plt.plot(cumul_sims_SD[sim_num][0], cumul_sims_SD[sim_num][3] / N, label='network', color="black")
+    
+    if (np.where(cumul_sims_EQ[sim_num][0] >= (SD_days[SD_day_dex] + EQ_implemented))[0].size != 0):
+        first_EQ = np.where(cumul_sims_EQ[sim_num][0] >= (SD_days[SD_day_dex] + EQ_implemented))[0][0]
+        plt.plot(cumul_sims_EQ[sim_num][0][first_EQ:-1], cumul_sims_EQ[sim_num][3][first_EQ:-1] / N, label='network', color="red")
     
     if (np.mod(sim_num + 1, 5) == 0):
         plt.axvline(x = SD_days[SD_day_dex])
