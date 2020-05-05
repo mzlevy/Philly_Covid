@@ -25,13 +25,14 @@ Initial set up of of the original network as well as the social distancing
 network.
 The original network is made up of two graphs: one for local connections, and
 the other for long distance connections.
-The social distancing network is built out of the original network. 
+The social distancing network is built out of the original network.
 """
 random.seed(0)
+philly_covid_direc = "/Users/Justin/"
 
 # Local connections -----------------------------------------------------------
 N = 1000
-local_raw = np.genfromtxt("/Users/Justin/Philly_Covid/example_network.csv", delimiter=',')
+local_raw = np.genfromtxt(philly_covid_direc + "Philly_Covid/example_network.csv", delimiter=',')
 rows, cols = np.where(local_raw == 1)
 edges = zip(rows.tolist(), cols.tolist())
 local = nx.Graph()
@@ -40,7 +41,7 @@ for node_num in list(range(1000)):
     local.add_node(node_num)
 
 # Long distance connections ---------------------------------------------------
-ld = nx.fast_gnp_random_graph(N, 0.02) # about 10000 edges out of possible 500,000 possible edges
+ld = nx.fast_gnp_random_graph(N, 0.02) # about 10000 edges out of possible 500000 possible edges
 
 # Combine the local connections graph and long distance connections graph -----
 O = nx.Graph()
@@ -74,6 +75,7 @@ if ((SD.number_of_nodes() != N) |
 def expand_local(local):
     ccs = list(nx.connected_component_subgraphs(local))
     ccs_to_expand = random.sample(list(range(len(ccs))), round(len(ccs)/ 2))
+    #ccs_to_expand = random.sample(list(range(len(ccs))), round(len(ccs)))
     pairs = list()
     while (len(ccs_to_expand) > 0):
         first_island_dex = random.randrange(0, len(ccs_to_expand))
@@ -181,11 +183,11 @@ Set the spontaneous parameters and transmission parameters for the SEIR simulati
 
 H = nx.DiGraph()
 H.add_node('S')
-H.add_edge('E', 'I', rate = 1/5, weight_label='expose2infect_weight')
-H.add_edge('I', 'R', rate = 1/8)
+H.add_edge('E', 'I', rate = 3* 1/5, weight_label='expose2infect_weight')
+H.add_edge('I', 'R', rate = 3* 1/8)
 
 J = nx.DiGraph()
-J.add_edge(('I', 'S'), ('I', 'E'), rate = (2.5 / (O.number_of_edges() / 1000) / 5), weight_label='transmission_weight')
+J.add_edge(('I', 'S'), ('I', 'E'), rate = (2.5 / (O.number_of_edges() / N) / 5), weight_label='transmission_weight')
 IC = defaultdict(lambda: 'S')
 for node in range(3):
     IC[node] = 'I'
@@ -198,8 +200,9 @@ graph, then switch to the expanding quarantine circle graph
 """
 cumul_sims_SD = list()
 cumul_sims_EQ = list()
+cumul_sims_RL = list()
 SD_days = list(range(2, 92, 2))
-EQ_implemented = 30
+EQ_implemented = 21
 for SD_day in SD_days:
     for iteration in list(range(5)):
         # First, run on the original graph ------------------------------------
@@ -223,7 +226,8 @@ for SD_day in SD_days:
         R_SD = full_SD.R()
         nodes_SD_final = full_SD.get_statuses(list(range(N)), t_SD[-1])
         
-        # Next, finish sim on the expanded quarantine graph or SD graph -------
+        # Next, finish sim on the expanded quarantine graph, SD graph, or
+        # relaxing lockdown ---------------------------------------------------
         EQ_IC = defaultdict(lambda: 'S')
         for node in range(N):
             EQ_IC[node] = nodes_SD_final[node]
@@ -243,6 +247,16 @@ for SD_day in SD_days:
         E_FSD = full_FSD.summary()[1]['E']
         I_FSD = full_FSD.I()
         R_FSD = full_FSD.R()
+        
+        RL_IC = defaultdict(lambda: 'S')
+        for node in range(N):
+            RL_IC[node] = nodes_SD_final[node]
+        full_RL = EoN.Gillespie_simple_contagion(O, H, J, RL_IC, return_statuses, tmax = float('Inf'), return_full_data=True)
+        t_RL = full_RL.t()
+        S_RL = full_RL.S()
+        E_RL = full_RL.summary()[1]['E']
+        I_RL = full_RL.I()
+        R_RL = full_RL.R()
         
         # Combine the time series of SD ---------------------------------------
         t = np.concatenate((t_O, (t_SD + t_O[-1])), axis=None)
@@ -286,6 +300,27 @@ for SD_day in SD_days:
         to_add.append(R)
         cumul_sims_EQ.append(to_add)
         
+        # Combine the time series of RL ---------------------------------------
+        t = np.concatenate((t_O, (t_SD + t_O[-1])), axis=None)
+        S = np.concatenate((S_O, S_SD), axis=None)
+        E = np.concatenate((E_O, E_SD), axis=None)
+        I = np.concatenate((I_O, I_SD), axis=None)
+        R = np.concatenate((R_O, R_SD), axis=None)
+        t = np.concatenate((t, (t_RL + t_SD[-1] + t_O[-1])), axis = None)
+        S = np.concatenate((S, S_RL), axis=None)
+        E = np.concatenate((E, E_RL), axis=None)
+        I = np.concatenate((I, I_RL), axis=None)
+        R = np.concatenate((R, R_RL), axis=None)
+    
+        # Save RL results in list of lists ------------------------------------
+        to_add = list()
+        to_add.append(t)
+        to_add.append(S)
+        to_add.append(E)
+        to_add.append(I)
+        to_add.append(R)
+        cumul_sims_RL.append(to_add)
+        
 """
 Plot comparison of the ODE model solution to the stochastic simulations of the 
 network model
@@ -294,7 +329,7 @@ SD_day_dex = 0
 for sim_num in range(len(cumul_sims_SD)):
     # Plot the stochastic simulations together --------------------------------
     plt.xlim(0, 200)
-    plt.ylim(0, 0.35)
+    plt.ylim(0, 0.4)
     plt.ylabel('I/N')
     plt.xlabel('t')
     plt.title('SD: ' + str(SD_days[SD_day_dex]))
@@ -304,6 +339,10 @@ for sim_num in range(len(cumul_sims_SD)):
     if (np.where(cumul_sims_EQ[sim_num][0] >= (SD_days[SD_day_dex] + EQ_implemented))[0].size != 0):
         first_EQ = np.where(cumul_sims_EQ[sim_num][0] >= (SD_days[SD_day_dex] + EQ_implemented))[0][0]
         plt.plot(cumul_sims_EQ[sim_num][0][first_EQ:-1], cumul_sims_EQ[sim_num][3][first_EQ:-1] / N, label='network', color="red")
+    
+    if (np.where(cumul_sims_RL[sim_num][0] >= (SD_days[SD_day_dex] + EQ_implemented))[0].size != 0):
+        first_RL = np.where(cumul_sims_RL[sim_num][0] >= (SD_days[SD_day_dex] + EQ_implemented))[0][0]
+        plt.plot(cumul_sims_RL[sim_num][0][first_RL:-1], cumul_sims_RL[sim_num][3][first_RL:-1] / N, label='network', color="green")
     
     if (np.mod(sim_num + 1, 5) == 0):
         plt.axvline(x = SD_days[SD_day_dex])
