@@ -70,5 +70,5 @@ print_local_ld(path_local="~/Philly_Covid/EoN/print_graphs/local.csv",
 print_local_ld(path_local="~/Philly_Covid/EoN/print_graphs/expanded_local.csv", 
                path_ld="~/Philly_Covid/EoN/print_graphs/ld_20.csv", 
                name_1="fused local circles", 
-               name_2="fused circles + LD added back:\nfused circles and 20% of long distance connections")
+               name_2="fused circles + LD added back:\nfused circles and 19% of long distance connections")
 dev.off()
