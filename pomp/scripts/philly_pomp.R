@@ -645,7 +645,7 @@ foreach (theta=iter(p,"row"),
            covid_pomp %>% pmcmc(
              start = theta,
              Nmcmc = 5000,
-             Np = 100,
+             Np = 300,
              proposal = mvn.diag.rw(rw.sd)
            ) -> pmcmc
                  
