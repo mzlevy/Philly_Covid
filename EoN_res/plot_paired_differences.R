@@ -1,5 +1,7 @@
 # Creation of Table 6 trajectories and quantiles -------------------------------
 
+# Part 1: Get quantile information and histogram of paired differences ---------
+
 # Get output folder name -------------------------------------------------------
 output_folder <- "~/Philly_Covid/EoN_res/output_paired_differences/"
 
@@ -35,6 +37,8 @@ for (Re in Res) {
     dev.off()
   }
 } 
+
+# Part 2: Get plots of trajectores ---------------------------------------------
 
 # Get output folder name -------------------------------------------------------
 output_folder <- "~/Philly_Covid/EoN_res/output_trajectories/"
