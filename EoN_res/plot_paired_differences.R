@@ -14,15 +14,13 @@ for (Re in Res) {
     input_folder <- paste0("~/Philly_Covid/EoN_res/Re_", Re, "_fuse_", fusing, "/")
     print(paste0("Re: ", Re))
     print(paste0("fusing: ", fusing))
-    align_point_FSD <- NA
-    align_point_EQ <- NA
     paired_differences <- vector()
     for (nsim in 1:nsims) {
       # Plot paired difference -------------------------------------------------
       paired_difference_name <- paste0(input_folder, "batch", nsim, "/plateau_paired_differences_", gsub("_", ".", Re), "_", fusing, ".csv")
       paired_difference <- read.csv(paired_difference_name, stringsAsFactors = F, header=F)
       paired_differences <- c(paired_differences, unname(unlist(paired_difference)))
-    
+    }
     # Write paired difference results ------------------------------------------
     o1 <- paste0("Re_", Re, "_fusing_", fusing)
     o2 <- paste0("nsims: ", nsims)
@@ -36,13 +34,19 @@ for (Re in Res) {
     pdf(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".pdf"), width=5, height=5)
     hist(paired_differences, breaks=10)
     dev.off()
-    }
   }
 } 
 
 
 for (Re in Res) {
   for (fusing in fusings) {
+    # Get input folder name ----------------------------------------------------
+    input_folder <- paste0("~/Philly_Covid/EoN_res/Re_", Re, "_fuse_", fusing, "/")
+    print(paste0("Re: ", Re))
+    print(paste0("fusing: ", fusing))
+    align_point_FSD <- NA
+    align_point_EQ <- NA
+    
     # Plot aligned trajectory ------------------------------------------------
     FSD_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_FSD.csv"), stringsAsFactors = F, header = F)
     EQ_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_EQ.csv"), stringsAsFactors = F, header = F)
