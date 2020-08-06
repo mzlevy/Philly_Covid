@@ -6,7 +6,6 @@ output_folder <- "~/Philly_Covid/EoN_res/output_paired_differences/"
 # Parameters of Table 6 --------------------------------------------------------
 Res <- c("1_5")
 fusings <- c(100, 200, 50)
-nsims <- 30
 for (Re in Res) {
   for (fusing in fusings) {
     # Get input folder name ----------------------------------------------------
@@ -14,6 +13,7 @@ for (Re in Res) {
     print(paste0("Re: ", Re))
     print(paste0("fusing: ", fusing))
     paired_differences <- vector()
+    nsims <- length(list.files(input_folder))
     for (nsim in 1:nsims) {
       # Plot paired difference -------------------------------------------------
       paired_difference_name <- paste0(input_folder, "batch", nsim, "/plateau_paired_differences_", gsub("_", ".", Re), "_", fusing, ".csv")
@@ -58,6 +58,7 @@ for (Re in Res) {
     align_point_FSD <- NA
     align_point_EQ <- NA
     start_of_evictions_day <- NA
+    nsims <- length(list.files(input_folder))
     for (nsim in 1:nsims) {
       # Plot aligned trajectory ------------------------------------------------
       FSD_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_FSD.csv"), stringsAsFactors = F, header = F)
