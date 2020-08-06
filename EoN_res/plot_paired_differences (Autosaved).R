@@ -25,8 +25,8 @@ for (Re in Res) {
     # Write paired difference results ------------------------------------------
     o1 <- paste0("Re_", Re, "_fusing_", fusing)
     o2 <- paste0("nsims: ", nsims)
-    o3 <- paste0("quantiles:")
-    o4 <- paste0(quantile(paired_differences))
+    o3 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o4 <- paste0(quantile(paired_differences, c(0,.025,.25,.5,.75,.975,1)))
     outputResult<-list(o1, o2, o3, o4)
     filename <- file.path(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".txt"))
     capture.output(outputResult, file = filename)
@@ -71,7 +71,7 @@ for (Re in Res) {
       if (nsim == 1) {
         align_point_FSD <- FSD_trajectory$V1[min(which(((FSD_trajectory$V4 + FSD_trajectory$V3) / N) >= 0.02))]
         align_point_EQ <- EQ_trajectory$V1[min(which(((EQ_trajectory$V4 + EQ_trajectory$V3) / N) >= 0.02))]
-        png(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".png"), width=800, height=800)
+        png(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".png"), width=1200, height=800)
         plot(FSD_trajectory$V1, FSD_trajectory$V4 / N, col='black', pch='.', ylim=c(0, 0.02), xlab="time (days)", ylab="% Infectious")
         
         start_of_evictions_day <- align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions
@@ -88,8 +88,8 @@ for (Re in Res) {
         new_time_EQ <- EQ_trajectory$V1 + to_move_EQ
         
         min_dex <- min(which(new_time_EQ >= start_of_evictions_day))
-        lines(new_time_FSD, FSD_trajectory$V4 / N, col='black', pch='.', lwd=.3)
-        lines(new_time_EQ[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, col='red', pch='.', lwd=.3)
+        lines(new_time_FSD, FSD_trajectory$V4 / N, col='black', lwd=.1)
+        lines(new_time_EQ[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, col='red', lwd=.1)
       }
     }
     abline(v=align_point_FSD, col='blue')
