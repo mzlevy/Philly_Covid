@@ -7,7 +7,6 @@ output_folder <- "~/Philly_Covid/EoN_res/output_paired_differences/"
 Res <- c("1_5")
 fusings <- c(100, 200, 50)
 nsims <- 30
-
 for (Re in Res) {
   for (fusing in fusings) {
     # Get input folder name ----------------------------------------------------
@@ -58,27 +57,34 @@ for (Re in Res) {
     print(paste0("fusing: ", fusing))
     align_point_FSD <- NA
     align_point_EQ <- NA
+    start_of_evictions_day <- NA
     for (nsim in 1:nsims) {
       # Plot aligned trajectory ------------------------------------------------
       FSD_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_FSD.csv"), stringsAsFactors = F, header = F)
       EQ_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_EQ.csv"), stringsAsFactors = F, header = F)
       
       if (nsim == 1) {
-        align_point_FSD <- FSD_trajectory$V1[min(which((FSD_trajectory$V4 / N) >= 0.01))]
-        align_point_EQ <- EQ_trajectory$V1[min(which((EQ_trajectory$V4 / N) >= 0.01))]
-        png(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".png"), width=500, height=500)
-        plot(FSD_trajectory$V1, FSD_trajectory$V4 / N, col='black', pch='.', ylim=c(0, 0.02))
-        lines(EQ_trajectory$V1, EQ_trajectory$V4 / N, col='red', pch='.')
+        align_point_FSD <- FSD_trajectory$V1[min(which(((FSD_trajectory$V4 + FSD_trajectory$V3) / N) >= 0.02))]
+        align_point_EQ <- EQ_trajectory$V1[min(which(((EQ_trajectory$V4 + EQ_trajectory$V3) / N) >= 0.02))]
+        png(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".png"), width=800, height=800)
+        plot(FSD_trajectory$V1, FSD_trajectory$V4 / N, col='black', pch='.', ylim=c(0, 0.02), xlab="time (days)", ylab="% Infectious")
+        
+        start_of_evictions_day <- align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions
+        
+        min_dex <- min(which(EQ_trajectory$V1 >= start_of_evictions_day))
+        lines(EQ_trajectory$V1[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, col='red', pch='.')
       } else {
-        align_point_FSD_focal <- FSD_trajectory$V1[min(which((FSD_trajectory$V4 / N) >= 0.01))]
-        align_point_EQ_focal <- EQ_trajectory$V1[min(which((EQ_trajectory$V4 / N) >= 0.01))]
+        align_point_FSD_focal <- FSD_trajectory$V1[min(which(((FSD_trajectory$V4 + FSD_trajectory$V3) / N) >= 0.02))]
+        align_point_EQ_focal <- EQ_trajectory$V1[min(which(((EQ_trajectory$V4 + EQ_trajectory$V3) / N) >= 0.02))]
         to_move_FSD <- align_point_FSD - align_point_FSD_focal
         to_move_EQ <- align_point_EQ - align_point_EQ_focal
+        stopifnot(to_move_FSD == to_move_EQ)
         new_time_FSD <- FSD_trajectory$V1 + to_move_FSD
         new_time_EQ <- EQ_trajectory$V1 + to_move_EQ
         
-        lines(new_time_FSD, FSD_trajectory$V4 / N, col='black')
-        lines(new_time_EQ, EQ_trajectory$V4 / N, col='red')
+        min_dex <- min(which(new_time_EQ >= start_of_evictions_day))
+        lines(new_time_FSD, FSD_trajectory$V4 / N, col='black', pch='.')
+        lines(new_time_EQ[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, col='red', pch='.')
       }
     }
     abline(v=align_point_FSD, col='blue')
