@@ -37,7 +37,19 @@ for (Re in Res) {
   }
 } 
 
+# Get output folder name -------------------------------------------------------
+output_folder <- "~/Philly_Covid/EoN_res/output_trajectories/"
 
+N <- 100000
+sd_date <- "2020/03/23"
+easing_date <- "2020/06/05"
+second_easing_date <- "2020/08/01"
+evictions_date <- "2020/09/01"
+second_sd_date <- "2020/11/1"
+sd_to_easing <- as.numeric(as.Date(easing_date, format="%Y/%m/%d") - as.Date(sd_date, format="%Y/%m/%d"))
+easing_to_second_easing <- as.numeric(as.Date(second_easing_date, format="%Y/%m/%d") - as.Date(easing_date, format="%Y/%m/%d"))
+second_easing_to_evictions <- as.numeric(as.Date(evictions_date, format="%Y/%m/%d") - as.Date(second_easing_date, format="%Y/%m/%d"))
+evictions_to_second_sd <- as.numeric(as.Date(second_sd_date, format="%Y/%m/%d") - as.Date(evictions_date, format="%Y/%m/%d"))
 for (Re in Res) {
   for (fusing in fusings) {
     # Get input folder name ----------------------------------------------------
@@ -46,28 +58,34 @@ for (Re in Res) {
     print(paste0("fusing: ", fusing))
     align_point_FSD <- NA
     align_point_EQ <- NA
-    
-    # Plot aligned trajectory ------------------------------------------------
-    FSD_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_FSD.csv"), stringsAsFactors = F, header = F)
-    EQ_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_EQ.csv"), stringsAsFactors = F, header = F)
-    
-    if (nsim == 1) {
-      align_point_FSD <- min(which(FSD_trajectory) > 0.01)
-      align_point_EQ <- min(which(EQ_trajectory) > 0.01)
-      pdf(paste0(output_folder, "/Re_", Re, "_fusing_", fusing, ".pdf"))
-      plot(1:length(FSD_trajectory), FSD_trajectory, col='black')
-      lines(1:length(EQ_trajectory), EQ_trajectory, col='red')
-    } else {
-      align_point_FSD_focal <- min(which(FSD_trajectory) > 0.01)
-      align_point_EQ_focal <- min(which(EQ_trajectory) > 0.01)
-      to_move_FSD <- align_point_FSD_focal - align_point_FSD
-      to_move_EQ <- align_point_EQ_focal - align_point_EQ
-      FSD_trajectory$time <- FSD_trajectory$time + to_move_FSD
-      EQ_trajectory$time <- EQ_trajectory$time + to_move_EQ
+    for (nsim in 1:nsims) {
+      # Plot aligned trajectory ------------------------------------------------
+      FSD_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_FSD.csv"), stringsAsFactors = F, header = F)
+      EQ_trajectory <- read.csv(paste0(input_folder, "batch", nsim, "/csvs/0_EQ.csv"), stringsAsFactors = F, header = F)
       
-      lines(FSD_trajectory$time, FSD_trajectory, col='black')
-      lines(EQ_trajectory$time, EQ_trajectory, col='red')
+      if (nsim == 1) {
+        align_point_FSD <- FSD_trajectory$V1[min(which((FSD_trajectory$V4 / N) >= 0.01))]
+        align_point_EQ <- EQ_trajectory$V1[min(which((EQ_trajectory$V4 / N) >= 0.01))]
+        png(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".png"), width=500, height=500)
+        plot(FSD_trajectory$V1, FSD_trajectory$V4 / N, col='black', pch='.', ylim=c(0, 0.02))
+        lines(EQ_trajectory$V1, EQ_trajectory$V4 / N, col='red', pch='.')
+      } else {
+        align_point_FSD_focal <- FSD_trajectory$V1[min(which((FSD_trajectory$V4 / N) >= 0.01))]
+        align_point_EQ_focal <- EQ_trajectory$V1[min(which((EQ_trajectory$V4 / N) >= 0.01))]
+        to_move_FSD <- align_point_FSD - align_point_FSD_focal
+        to_move_EQ <- align_point_EQ - align_point_EQ_focal
+        new_time_FSD <- FSD_trajectory$V1 + to_move_FSD
+        new_time_EQ <- EQ_trajectory$V1 + to_move_EQ
+        
+        lines(new_time_FSD, FSD_trajectory$V4 / N, col='black')
+        lines(new_time_EQ, EQ_trajectory$V4 / N, col='red')
+      }
     }
+    abline(v=align_point_FSD, col='blue')
+    abline(v=align_point_FSD + sd_to_easing, col='blue', lty="dashed")
+    abline(v=align_point_FSD + sd_to_easing + easing_to_second_easing, col='blue', lty="dashed")
+    abline(v=align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions, col='blue', lty="dashed")
+    abline(v=align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions + evictions_to_second_sd, col='blue')
     dev.off()
   }
 }
