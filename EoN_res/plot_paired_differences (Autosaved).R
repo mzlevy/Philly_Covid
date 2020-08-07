@@ -53,6 +53,8 @@ sd_to_easing <- as.numeric(as.Date(easing_date, format="%Y/%m/%d") - as.Date(sd_
 easing_to_second_easing <- as.numeric(as.Date(second_easing_date, format="%Y/%m/%d") - as.Date(easing_date, format="%Y/%m/%d"))
 second_easing_to_evictions <- as.numeric(as.Date(evictions_date, format="%Y/%m/%d") - as.Date(second_easing_date, format="%Y/%m/%d"))
 evictions_to_second_sd <- as.numeric(as.Date(second_sd_date, format="%Y/%m/%d") - as.Date(evictions_date, format="%Y/%m/%d"))
+Res <- c("1_5")
+fusings <- c(50)
 for (Re in Res) {
   for (fusing in fusings) {
     # Get input folder name ----------------------------------------------------
@@ -61,7 +63,19 @@ for (Re in Res) {
     print(paste0("fusing: ", fusing))
     align_point_FSD <- NA
     align_point_EQ <- NA
+    start_of_sd_day <- NA
+    start_of_easing_day <- NA
+    start_of_second_easing_day <- NA
     start_of_evictions_day <- NA
+    start_of_second_sd_day <- NA
+    prevs_at_sd <- vector()
+    prevs_at_easing <- vector()
+    prevs_at_second_easing <- vector()
+    prevs_at_evictions <- vector()
+    prevs_at_second_sd_FSD <- vector()
+    prevs_at_second_sd_EQ <- vector()
+    prevs_final_FSD <- vector()
+    prevs_final_EQ <- vector()
     nsims <- length(list.files(input_folder))
     for (nsim in 1:nsims) {
       # Plot aligned trajectory ------------------------------------------------
@@ -74,10 +88,29 @@ for (Re in Res) {
         png(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".png"), width=1200, height=800)
         plot(FSD_trajectory$V1, FSD_trajectory$V4 / N, col='black', pch='.', ylim=c(0, 0.02), xlab="time (days)", ylab="% Infectious")
         
+        start_of_sd_day <- align_point_FSD
+        start_of_easing_day <- align_point_FSD + sd_to_easing
+        start_of_second_easing_day <- align_point_FSD + sd_to_easing + easing_to_second_easing
         start_of_evictions_day <- align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions
+        start_of_second_sd_day <- align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions + evictions_to_second_sd
         
-        min_dex <- min(which(EQ_trajectory$V1 >= start_of_evictions_day))
-        lines(EQ_trajectory$V1[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, col='red', pch='.')
+        min_dex_sd <- min(which(EQ_trajectory$V1 >= start_of_sd_day))
+        min_dex_easing <- min(which(EQ_trajectory$V1 >= start_of_easing_day))
+        min_dex_second_easing <- min(which(EQ_trajectory$V1 >= start_of_second_easing_day))
+        min_dex_evictions <- min(which(EQ_trajectory$V1 >= start_of_evictions_day))
+        min_dex_second_sd_FSD <- min(which(FSD_trajectory$V1 >= start_of_second_sd_day))
+        min_dex_second_sd_EQ <- min(which(EQ_trajectory$V1 >= start_of_second_sd_day))
+        
+        prevs_at_sd <- c(prevs_at_sd, (EQ_trajectory$V4[min_dex_sd] + EQ_trajectory$V5[min_dex_sd]) / N)
+        prevs_at_easing <- c(prevs_at_easing, (EQ_trajectory$V4[min_dex_easing] + EQ_trajectory$V5[min_dex_easing]) / N)
+        prevs_at_second_easing <- c(prevs_at_second_easing, (EQ_trajectory$V4[min_dex_second_easing] + EQ_trajectory$V5[min_dex_second_easing]) / N)
+        prevs_at_evictions <- c(prevs_at_evictions, (EQ_trajectory$V4[min_dex_evictions] + EQ_trajectory$V5[min_dex_evictions]) / N)
+        prevs_at_second_sd_FSD <- c(prevs_at_second_sd_FSD, (FSD_trajectory$V4[min_dex_second_sd_FSD] + FSD_trajectory$V5[min_dex_second_sd_FSD]) / N)
+        prevs_at_second_sd_EQ <- c(prevs_at_second_sd_EQ, (EQ_trajectory$V4[min_dex_second_sd_EQ] + EQ_trajectory$V5[min_dex_second_sd_EQ]) / N)
+        prevs_final_FSD <- c(prevs_final_FSD, (FSD_trajectory$V4[nrow(FSD_trajectory)] + FSD_trajectory$V5[nrow(FSD_trajectory)]) / N)
+        prevs_final_EQ <- c(prevs_final_EQ, (EQ_trajectory$V4[nrow(EQ_trajectory)] + EQ_trajectory$V5[nrow(EQ_trajectory)]) / N) 
+        
+        lines(EQ_trajectory$V1[min_dex_evictions:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex_evictions:nrow(EQ_trajectory)] / N, col='red', pch='.')
       } else {
         align_point_FSD_focal <- FSD_trajectory$V1[min(which(((FSD_trajectory$V4 + FSD_trajectory$V3) / N) >= 0.02))]
         align_point_EQ_focal <- EQ_trajectory$V1[min(which(((EQ_trajectory$V4 + EQ_trajectory$V3) / N) >= 0.02))]
@@ -87,9 +120,24 @@ for (Re in Res) {
         new_time_FSD <- FSD_trajectory$V1 + to_move_FSD
         new_time_EQ <- EQ_trajectory$V1 + to_move_EQ
         
-        min_dex <- min(which(new_time_EQ >= start_of_evictions_day))
+        min_dex_sd <- min(which(new_time_EQ >= start_of_sd_day))
+        min_dex_easing <- min(which(new_time_EQ >= start_of_easing_day))
+        min_dex_second_easing <- min(which(new_time_EQ >= start_of_second_easing_day))
+        min_dex_evictions <- min(which(new_time_EQ >= start_of_evictions_day))
+        min_dex_second_sd_FSD <- min(which(new_time_FSD >= start_of_second_sd_day))
+        min_dex_second_sd_EQ <- min(which(new_time_EQ >= start_of_second_sd_day))
+        
+        prevs_at_sd <- c(prevs_at_sd, (EQ_trajectory$V4[min_dex_sd] + EQ_trajectory$V5[min_dex_sd]) / N)
+        prevs_at_easing <- c(prevs_at_easing, (EQ_trajectory$V4[min_dex_easing] + EQ_trajectory$V5[min_dex_easing]) / N)
+        prevs_at_second_easing <- c(prevs_at_second_easing, (EQ_trajectory$V4[min_dex_second_easing] + EQ_trajectory$V5[min_dex_second_easing]) / N)
+        prevs_at_evictions <- c(prevs_at_evictions, (EQ_trajectory$V4[min_dex_evictions] + EQ_trajectory$V5[min_dex_evictions]) / N)
+        prevs_at_second_sd_FSD <- c(prevs_at_second_sd_FSD, (FSD_trajectory$V4[min_dex_second_sd_FSD] + FSD_trajectory$V5[min_dex_second_sd_FSD]) / N)
+        prevs_at_second_sd_EQ <- c(prevs_at_second_sd_EQ, (EQ_trajectory$V4[min_dex_second_sd_EQ] + EQ_trajectory$V5[min_dex_second_sd_EQ]) / N)
+        prevs_final_FSD <- c(prevs_final_FSD, (FSD_trajectory$V4[nrow(FSD_trajectory)] + FSD_trajectory$V5[nrow(FSD_trajectory)]) / N)
+        prevs_final_EQ <- c(prevs_final_EQ, (EQ_trajectory$V4[nrow(EQ_trajectory)] + EQ_trajectory$V5[nrow(EQ_trajectory)]) / N) 
+        
         lines(new_time_FSD, FSD_trajectory$V4 / N, col='black', lwd=.1)
-        lines(new_time_EQ[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, col='red', lwd=.1)
+        lines(new_time_EQ[min_dex_evictions:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex_evictions:nrow(EQ_trajectory)] / N, col='red', lwd=.1)
       }
     }
     abline(v=align_point_FSD, col='blue')
@@ -98,5 +146,37 @@ for (Re in Res) {
     abline(v=align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions, col='blue', lty="dashed")
     abline(v=align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions + evictions_to_second_sd, col='blue')
     dev.off()
+    
+    # Output "prev at day" statistics ------------------------------------------
+    o1 <- paste0("Re_", Re, "_fusing_", fusing)
+    o2 <- paste0("nsims: ", nsims)
+    o3 <- paste0("prevs_at_sd:")
+    o4 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o5 <- paste0(quantile(prevs_at_sd, c(0,.025,.25,.5,.75,.975,1)))
+    o6 <- paste0("prevs_at_easing:")
+    o7 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o8 <- paste0(quantile(prevs_at_easing, c(0,.025,.25,.5,.75,.975,1)))
+    o9 <- paste0("prevs_at_second_easing:")
+    o10 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o11 <- paste0(quantile(prevs_at_second_easing, c(0,.025,.25,.5,.75,.975,1)))
+    o12 <- paste0("prevs_at_evictions:")
+    o13 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o14 <- paste0(quantile(prevs_at_evictions, c(0,.025,.25,.5,.75,.975,1)))
+    o15 <- paste0("prevs_at_second_sd_FSD:")
+    o16 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o17 <- paste0(quantile(prevs_at_second_sd_FSD, c(0,.025,.25,.5,.75,.975,1)))
+    o18 <- paste0("prevs_at_second_sd_EQ:")
+    o19 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o20 <- paste0(quantile(prevs_at_second_sd_EQ, c(0,.025,.25,.5,.75,.975,1)))
+    o21 <- paste0("prevs_final_FSD:")
+    o22 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o23 <- paste0(quantile(prevs_final_FSD, c(0,.025,.25,.5,.75,.975,1)))
+    o24 <- paste0("prevs_final_EQ:")
+    o25 <- paste0("quantiles 0,.025,.25,.5,.75,.975, 1 :")
+    o26 <- paste0(quantile(prevs_final_EQ, c(0,.025,.25,.5,.75,.975,1)))
+    outputResult<-list(o1, o2, o3, o4, o5, o6, o7, o8, o9, o10, o11, o12, o13, o14, o15, o16, o17, o18, o19, o20, o21, o22, o23, o24, o25, o26)
+    filename <- file.path(paste0(output_folder, "cumul_prevs_at_day_Re_", Re, "_fusing_", fusing, ".txt"))
+    capture.output(outputResult, file = filename)
   }
 }
+
