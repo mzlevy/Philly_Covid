@@ -8,8 +8,8 @@
 output_folder <- "~/Philly_Covid/EoN_res/output_paired_differences/backlog/"
 
 # Parameters of Table 6 --------------------------------------------------------
-Res <- c("1_5")
-fusings <- c(50, 100)
+Res <- c("1_2")
+fusings <- c(50)
 for (Re in Res) {
   for (fusing in fusings) {
     # Get input folder name ----------------------------------------------------
@@ -17,7 +17,7 @@ for (Re in Res) {
     
     #for backlog
     input_folder <- paste0("~/Philly_Covid/EoN_res/backlog/backlog_Re_", Re, "_fuse_", fusing, "/")
-
+	setwd(input_folder)
     
     print(paste0("Re: ", Re))
     print(paste0("fusing: ", fusing))
@@ -88,12 +88,12 @@ for (Re in Res) {
         align_point_FSD <- FSD_trajectory$V1[min(which(((FSD_trajectory$V4 + FSD_trajectory$V3) / N) >= 0.02))]
         align_point_EQ <- EQ_trajectory$V1[min(which(((EQ_trajectory$V4 + EQ_trajectory$V3) / N) >= 0.02))]
         png(paste0(output_folder, "Re_", Re, "_fusing_", fusing, ".png"), width=1200, height=800)
-        plot(FSD_trajectory$V1, FSD_trajectory$V4 / N, col='black', pch='.', ylim=c(0, 0.02), xlab="time (days)", ylab="% Infectious")
+        plot(FSD_trajectory$V1, FSD_trajectory$V4 / N, col='black', pch='.', ylim=c(0, 0.02), lwd=.1, xlab="time (days)", ylab="% Infectious")
         
         start_of_evictions_day <- align_point_FSD + sd_to_easing + easing_to_second_easing + second_easing_to_evictions
         
         min_dex <- min(which(EQ_trajectory$V1 >= start_of_evictions_day))
-        lines(EQ_trajectory$V1[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, col='red', pch='.')
+        lines(EQ_trajectory$V1[min_dex:nrow(EQ_trajectory)], EQ_trajectory$V4[min_dex:nrow(EQ_trajectory)] / N, lwd=.1, col='red', pch='.')
       } else {
         align_point_FSD_focal <- FSD_trajectory$V1[min(which(((FSD_trajectory$V4 + FSD_trajectory$V3) / N) >= 0.02))]
         align_point_EQ_focal <- EQ_trajectory$V1[min(which(((EQ_trajectory$V4 + EQ_trajectory$V3) / N) >= 0.02))]

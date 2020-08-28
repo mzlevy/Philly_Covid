@@ -1,0 +1,43 @@
+sar: 0.3
+ratio_beta_house_to_LD: 2.3
+beta_initial_local: 0.044584367992341556
+beta_initial_ld: 0.0193845078227572
+SD continued; FS %: 30.161 [30.161, 30.161]
+involuntary fusing; FS %: 33.218 [33.218, 33.218]
+paired difference FS %: 3.057 [3.057, 3.057]
+Network parameters -------------------- 
+Num. houses: 39155.0 [39155, 39155]
+Num. edges init: 789348.0 [789348, 789348]
+Rt under SD: 0.85
+Num. edges SD: 256192.0 [256192, 256192]
+Rt under easing: 1.05
+Num. edges easing: 320602.0 [320602, 320602]
+Rt under second easing: 1.5
+Num. edges second easing: 465311.0 [465311, 465311]
+% households fused initial: 1.49
+Num LD @ initial: 670238.0 [670238, 670238]
+Num LD @ SD: 137064.0 [137064.0, 137064.0]
+Num LD @ easing: 201551.0 [201551.0, 201551.0]
+SEIR epidemic parameters ------------ 
+R0: 2.5; E to I: 5.0 days; I to R: 8.0 days
+% prev. @ SD intervention: 1.414 [1.414, 1.414]
+% prev. @ easing: 8.685 [8.685, 8.685]
+% prev. @ evictions: 10.382 [10.382, 10.382]
+shelter_size: 3
+num_shelters: 1
+second_SD_date: 2020-11-01
+percent_delete_second_SD_date: 0.35
+fusing_tuple: (datetime.date(2020, 10, 1), 0.005)
+shelter_fusing_tuple: (datetime.date(2020, 10, 1), 0)
+fusing_tuple: (datetime.date(2020, 11, 1), 0.005)
+shelter_fusing_tuple: (datetime.date(2020, 11, 1), 0)
+fusing_tuple: (datetime.date(2020, 12, 1), 0.005)
+shelter_fusing_tuple: (datetime.date(2020, 12, 1), 0)
+fusing_tuple: (datetime.date(2021, 1, 1), 0.005)
+shelter_fusing_tuple: (datetime.date(2021, 1, 1), 0)
+fusing_tuple: (datetime.date(2021, 2, 1), 0.005)
+shelter_fusing_tuple: (datetime.date(2021, 2, 1), 0)
+fusing_tuple: (datetime.date(2021, 3, 1), 0.005)
+shelter_fusing_tuple: (datetime.date(2021, 3, 1), 0)
+fusing_tuple: (datetime.date(2021, 4, 1), 0.005)
+shelter_fusing_tuple: (datetime.date(2021, 4, 1), 0)
